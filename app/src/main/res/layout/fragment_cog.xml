@@ -1,0 +1,25 @@
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:id="@+id/layoutContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingBottom="60dp">
+        <!-- Dynamic TextViews for order details will be added here -->
+        <Button
+            android:id="@+id/btnUploadCsv"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Upload CSV"
+            android:layout_gravity="center"/>
+
+        <TextView
+            android:id="@+id/UploadedFiles"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="TextView" />
+    </LinearLayout>
+</ScrollView>
