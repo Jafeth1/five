@@ -55,6 +55,8 @@ public class InventoryFragment extends Fragment {
         layoutContainer = view.findViewById(R.id.layoutContainer);
         forecastContainer  = view.findViewById(R.id.forecastContainer);
 
+
+
         createForecastInputFields();
         initializeCategoryItems();
         createDynamicInventoryInput();
@@ -173,21 +175,39 @@ public class InventoryFragment extends Fragment {
         viewModel.updateInventoryQuantities(newQuantities);
     }
 
+    public Map<String, Double> getDailyForecast() {
+        Map<String, Double> dailyForecast = new HashMap<>();
+        for (Map.Entry<String, EditText> entry : forecastFields.entrySet()) {
+            String day = entry.getKey();
+            EditText editText = entry.getValue();
+            String forecastValueStr = editText.getText().toString();
+            double forecastValue = forecastValueStr.isEmpty() ? 0.0 : Double.parseDouble(forecastValueStr);
+            dailyForecast.put(day, forecastValue);
+        }
+        return dailyForecast;
+    }
+
 
     private void loadEditTextValues() {
         Map<String, ?> allEntries = sharedPreferences.getAll();
         for (Map.Entry<String, ?> entry : allEntries.entrySet()) {
             String key = entry.getKey();
             Object value = entry.getValue();
-            if (value instanceof String) {
+
+            // Check if the key is part of the inventory items to ensure it's a numeric value
+            if (editTextMap.containsKey(key)) { // Assuming editTextMap contains keys for all inventory items
                 try {
-                    double quantity = Double.parseDouble((String) value);
-                    EditText editText = editTextMap.get(key);
-                    if (editText != null) {
-                        editText.setText(String.format(Locale.getDefault(), "%.2f", quantity));
+                    // Parse the value as a double only if it's a String and related to inventory
+                    if (value instanceof String) {
+                        double quantity = Double.parseDouble((String) value);
+                        EditText editText = editTextMap.get(key);
+                        if (editText != null) {
+                            editText.setText(String.format(Locale.getDefault(), "%.2f", quantity));
+                        }
                     }
                 } catch (NumberFormatException e) {
                     Log.e("InventoryFragment", "Error parsing quantity for item " + key, e);
+                    // Handle the error or ignore this entry
                 }
             }
         }
@@ -343,7 +363,7 @@ public class InventoryFragment extends Fragment {
             builder.setMessage("The following items have not been entered yet:\n" + emptyItemsBuilder.toString());
             builder.setPositiveButton("OK", (dialog, id) -> dialog.dismiss());
             AlertDialog dialog = builder.create();
-            dialog.show();
+            //dialog.show();
         }
     }
 

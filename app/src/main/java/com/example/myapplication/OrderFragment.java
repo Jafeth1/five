@@ -45,7 +45,7 @@ public class OrderFragment extends Fragment {
             "Milkshake Base",  "Reese's Cups", "Whipped Cream", "Strawberry", "Bananas", "SAUCE A1", "Sauce Hot", "SAUCE BBQ", "Onion", "Lettuce",
 
             // BOH
-             "Syrup Chocolate Fudge", "Syrup Caramel", "Syrup Sweetener", "Oreo Cookie Pieces",
+            "Syrup Chocolate Fudge", "Syrup Caramel", "Syrup Sweetener", "Oreo Cookie Pieces",
             "Hairnets Nylon", "Beardnets", "Salt Sea", "Syrup Peanut Butter", "Mayonnaise", "Patty Paper",
             "Brown Bags 6 LB", "Brown Bags 12 LB",  "Mart Shopping Bags", "Brown Bags 20 LB", "SALT Bag",
             "Souffle CUPS 2 oz", "Souffle LIDS 2 Oz", "Peanut Trays", "KETCHUP Crayovac", "Mustard", "Peanuts Salted",
@@ -218,20 +218,11 @@ public class OrderFragment extends Fragment {
                 for (Map.Entry<String, ? extends Number> entry : inventoryQuantities.entrySet()) {
                     latestInventoryQuantities.put(entry.getKey(), entry.getValue().doubleValue());
                 }
-                updateOrderDetails();
             }
         });
 
         // Observe COG Values
-        viewModel.getCogValuesLiveData().observe(this, cogValues -> {
-            if (cogValues != null) {
-                latestCogValues.clear();
-                latestCogValues.putAll(cogValues);
-                if (!latestInventoryQuantities.isEmpty()) {
-                    updateOrderDetails();
-                }
-            }
-        });
+
     }
 
 
@@ -239,9 +230,6 @@ public class OrderFragment extends Fragment {
         if (cogValues != null) {
             latestCogValues.clear();
             latestCogValues.putAll(cogValues);
-            if (!latestInventoryQuantities.isEmpty()) {
-                updateOrderDetails();
-            }
         }
     }
 
@@ -320,10 +308,9 @@ public class OrderFragment extends Fragment {
 
     private int calculatePotatoBagOrderAmount(double forecastValue, double currentInventory) {
         final int minimumRequired = 28; // Minimum inventory required for Potatoes
-        final int maximumStorage = 48; // Maximum storage capacity for Potatoes
-        final int forecastedOrder = (int) Math.ceil(forecastValue / 10000 * 30); // Assuming each $10,000 of sales forecasts 30 units of Potatoes
+        final int maximumStorage = 50; // Maximum storage capacity for Potatoes
 
-        int orderAmount = Math.max(forecastedOrder, minimumRequired) - (int) currentInventory;
+        int orderAmount = minimumRequired - (int) currentInventory;
         orderAmount = Math.max(orderAmount, 0); // Ensure the order amount is not negative
         return Math.min(orderAmount, maximumStorage - (int) currentInventory);
     }
@@ -331,25 +318,27 @@ public class OrderFragment extends Fragment {
 
     private int calculateOrderAmount(String itemName) {
         double forecastValue = sharedViewModel.getForecast().getValue(); // Forecasted sales in dollars.
-        double currentInventoryUnits = latestInventoryQuantities.getOrDefault(itemName, 0.0); // Current inventory, including fractional units.
-        double usagePer10k = latestCogValues.getOrDefault(itemName, 0.0); // Usage rate per $10k of sales, also representing itemCOG.
+        double currentInventoryUnits = latestInventoryQuantities.getOrDefault(itemName, 0.0); // Current inventory in units.
+        double usagePer10k = latestCogValues.getOrDefault(itemName, 0.0); // Usage rate per $10k of sales in cases.
 
-        // Calculate the daily usage estimate for dynamic fractional impact evaluation.
-        double dailyUsageEstimate = (forecastValue / 10000.0) * usagePer10k / 30; // Assuming a 30-day month for simplicity.
-
+        Log.d("Inve", itemName + usagePer10k);
         if (itemName.equals("Peanut Oil")) {
             return calculatePeanutOilOrderAmount(currentInventoryUnits, forecastValue, usagePer10k);
         } else if (itemName.equals("Potatoes")) {
             return calculatePotatoBagOrderAmount(forecastValue, currentInventoryUnits);
         }
 
-        // Calculate base required cases with surplus factor applied.
-        double baseRequiredCases = (forecastValue / 10000.0) * usagePer10k;
+        // Calculate base required cases based on the forecast and the item's usage rate.
+        double baseRequiredCases = ((forecastValue / 10000.0) * usagePer10k);
+
+        // Determine the surplus factor based on whether the item is produce or not.
         double surplusFactor = produceItems.contains(itemName) ? 1.15 : 1.10;
+
+        // Apply the surplus factor to the base required cases.
         double totalRequiredCasesWithSurplus = baseRequiredCases * surplusFactor;
 
         // Evaluate the significance of fractional inventory.
-        double fractionalInventoryImpact = evaluateFractionalImpact(currentInventoryUnits, usagePer10k, dailyUsageEstimate, itemName);
+        double fractionalInventoryImpact = evaluateFractionalImpact(currentInventoryUnits, usagePer10k, totalRequiredCasesWithSurplus, itemName);
 
         // Adjust required cases based on fractional inventory significance.
         double adjustedTotalRequiredCases = totalRequiredCasesWithSurplus - fractionalInventoryImpact;
@@ -382,7 +371,7 @@ public class OrderFragment extends Fragment {
 
     private double calculateRiskAdjustmentFactor(String itemName, double currentInventoryUnits, double adjustedTotalRequiredCases) {
         // Risk adjustment for volatility, especially for high-turnover or critical items.
-        double riskFactor = itemName.matches(".*Bottle.*") ? 0.20 : 0.10;
+        double riskFactor = itemName.matches(".*Bottle.*") ? 0.20 : 0;
         double shortfall = adjustedTotalRequiredCases - currentInventoryUnits;
         return shortfall > 0 ? shortfall * riskFactor : 0;
     }
